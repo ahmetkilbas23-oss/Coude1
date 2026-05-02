@@ -1,0 +1,370 @@
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Nokia color palette */
+:root {
+  --lcd-bg:    #8bac0f;
+  --lcd-dark:  #0f380f;
+  --lcd-mid:   #306230;
+  --lcd-light: #9bbc0f;
+  --phone-body:#1a1a2e;
+  --phone-2:   #16213e;
+  --btn-color: #0f3460;
+  --btn-light: #533483;
+  --font: 'Press Start 2P', monospace;
+}
+
+body {
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: var(--font);
+  overflow: hidden;
+}
+
+/* ── Phone Shell ── */
+#phone {
+  width: 300px;
+  background: linear-gradient(160deg, var(--phone-body) 0%, var(--phone-2) 100%);
+  border-radius: 30px 30px 50px 50px;
+  padding: 10px 14px 20px;
+  box-shadow:
+    0 0 0 2px #333,
+    0 0 40px rgba(139,172,15,0.3),
+    inset 0 2px 4px rgba(255,255,255,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+/* ── Brand ── */
+#brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px 0;
+}
+.brand-nokia {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--lcd-light);
+  text-shadow: 0 0 8px var(--lcd-bg);
+}
+.brand-model {
+  font-size: 7px;
+  color: #555;
+}
+
+/* ── Screen bezel ── */
+#screen-bezel {
+  background: #080808;
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: inset 0 2px 8px #000;
+}
+
+/* ── LCD Screen ── */
+#screen {
+  background: var(--lcd-bg);
+  border-radius: 4px;
+  width: 100%;
+  height: 280px;
+  position: relative;
+  overflow: hidden;
+  image-rendering: pixelated;
+}
+
+/* scanlines */
+#scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* ── Shared screen page ── */
+.screen-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  color: var(--lcd-dark);
+  font-size: 7px;
+}
+
+.screen-page.hidden { display: none; }
+
+/* ── Lobby ── */
+.nokia-title {
+  text-align: center;
+  line-height: 1.8;
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--lcd-dark);
+}
+.nokia-sep {
+  width: 100%;
+  height: 2px;
+  background: var(--lcd-mid);
+  margin: 2px 0;
+}
+.lobby-info {
+  text-align: center;
+  line-height: 2;
+}
+.lobby-hint {
+  color: var(--lcd-mid);
+  font-size: 6px;
+}
+.coin-val {
+  font-size: 9px;
+  color: var(--lcd-dark);
+}
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.input-row label {
+  font-size: 7px;
+  white-space: nowrap;
+}
+#name-input {
+  background: var(--lcd-dark);
+  color: var(--lcd-light);
+  border: none;
+  border-radius: 2px;
+  padding: 3px 5px;
+  font-family: var(--font);
+  font-size: 7px;
+  width: 100%;
+  outline: none;
+  text-transform: uppercase;
+}
+.nokia-btn {
+  background: var(--lcd-dark);
+  color: var(--lcd-light);
+  border: none;
+  border-radius: 3px;
+  font-family: var(--font);
+  font-size: 7px;
+  padding: 5px 10px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 0.1s;
+  width: 100%;
+}
+.nokia-btn:hover, .nokia-btn:active {
+  background: var(--lcd-mid);
+  color: var(--lcd-bg);
+}
+
+/* ── Game HUD ── */
+#screen-game {
+  padding: 0;
+  justify-content: flex-start;
+}
+#hud {
+  width: 100%;
+  background: var(--lcd-dark);
+  color: var(--lcd-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 4px;
+  font-size: 5px;
+  flex-shrink: 0;
+}
+#canvas {
+  display: block;
+  image-rendering: pixelated;
+  flex: 1;
+  width: 100%;
+  cursor: none;
+}
+#ctrl-hint {
+  font-size: 5px;
+  color: var(--lcd-mid);
+  padding: 2px;
+  text-align: center;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* ── Leaderboard overlay ── */
+#leaderboard {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 110px;
+  background: rgba(15,56,15,0.92);
+  color: var(--lcd-light);
+  padding: 4px;
+  font-size: 5px;
+  z-index: 50;
+  border-left: 2px solid var(--lcd-mid);
+  border-bottom: 2px solid var(--lcd-mid);
+  border-radius: 0 0 0 4px;
+}
+#leaderboard.hidden { display: none; }
+.lb-title {
+  text-align: center;
+  margin-bottom: 3px;
+  font-size: 6px;
+}
+#lb-list {
+  list-style: none;
+  padding: 0;
+}
+#lb-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 0;
+  border-bottom: 1px solid var(--lcd-mid);
+  gap: 4px;
+}
+#lb-list li span.lb-name {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 60px;
+}
+
+/* ── Death screen ── */
+.death-header {
+  font-size: 12px;
+  text-align: center;
+}
+.death-info {
+  font-size: 6px;
+  text-align: center;
+  color: var(--lcd-mid);
+}
+
+/* ── D-Pad ── */
+#controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8px;
+}
+#dpad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.dpad-mid {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.dpad-center {
+  width: 22px; height: 22px;
+  background: #0a0a1a;
+  border-radius: 3px;
+}
+.dpad-btn {
+  width: 28px; height: 28px;
+  background: linear-gradient(145deg, #2a2a4a, #111128);
+  color: var(--lcd-light);
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.dpad-btn:active {
+  transform: scale(0.92);
+  background: var(--btn-light);
+}
+
+/* ── Action buttons ── */
+#action-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.act-btn {
+  width: 44px; height: 28px;
+  background: linear-gradient(145deg, #2a2a4a, #111128);
+  color: var(--lcd-light);
+  border: 1px solid #333;
+  border-radius: 14px;
+  font-family: var(--font);
+  font-size: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.act-btn:active {
+  background: var(--btn-light);
+  transform: scale(0.95);
+}
+
+/* ── Phone bottom ── */
+#phone-bottom {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding-bottom: 4px;
+}
+.speaker-dot {
+  width: 5px; height: 5px;
+  background: #222;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 2px #000;
+}
+
+/* ── Toast ── */
+#toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--lcd-dark);
+  color: var(--lcd-light);
+  border: 2px solid var(--lcd-mid);
+  font-family: var(--font);
+  font-size: 7px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  z-index: 999;
+  text-align: center;
+  pointer-events: none;
+  max-width: 280px;
+}
+#toast.hidden { display: none; }
+
+/* ── Blink animation ── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.blink { animation: blink 1s step-end infinite; }
+
+/* ── Pixel glow ── */
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 4px var(--lcd-bg); }
+  50% { text-shadow: 0 0 12px var(--lcd-light), 0 0 4px var(--lcd-bg); }
+}
