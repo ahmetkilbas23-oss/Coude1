@@ -1,0 +1,14 @@
+{
+  "name": "nokia-snake-multiplayer",
+  "version": "1.0.0",
+  "description": "Nokia 3310 retro multiplayer snake game with coin system",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+  }
+}
