@@ -15,7 +15,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const MAP_WIDTH = 220;
 const MAP_HEIGHT = 220;
 const CELL = 10;
-const TICK_MS = 90;
+const TICK_MS = 50;
 const FOOD_COUNT = 100;
 const COIN_FOOD_COUNT = 25;
 const ENTRY_FEE = 50;
