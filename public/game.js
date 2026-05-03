@@ -90,19 +90,21 @@ function getInterpFrame() {
 }
 
 // ── Client-side prediction (own snake only) ───────────────────────────────────
-// Predict own snake position so input feels instant (no waiting for server tick).
+// Key insight: for OWN snake, NEVER lerp against server state.
+// Store prevBody and curBody within prediction, lerp between those only.
+// Server state is only used to snap if we drift too far.
 let pred = {
-  body:     null,   // predicted body segments
+  body:     null,   // body at latest prediction tick
+  prevBody: null,   // body at previous prediction tick (for sub-tick lerp)
   dir:      'RIGHT',
-  nextTick: 0,
-  growing:  false
+  nextTick: 0
 };
 
 function dirVec(dir) {
   return { UP:{x:0,y:-1}, DOWN:{x:0,y:1}, LEFT:{x:-1,y:0}, RIGHT:{x:1,y:0} }[dir] || {x:1,y:0};
 }
 
-// Advance prediction up to `now`, one tick at a time
+// Advance prediction one tick at a time up to `now`
 function advancePrediction(now) {
   if (!pred.body || !alive) return;
   while (now >= pred.nextTick) {
@@ -110,37 +112,42 @@ function advancePrediction(now) {
     const head = pred.body[0];
     const nx   = head.x + dv.x;
     const ny   = head.y + dv.y;
-    if (nx < 0 || nx >= mapW || ny < 0 || ny >= mapH) break; // wall
-    const newBody = [{ x: nx, y: ny }, ...pred.body];
-    if (!pred.growing) newBody.pop();
-    pred.body    = newBody;
-    pred.growing = false;
+    if (nx < 0 || nx >= mapW || ny < 0 || ny >= mapH) break;
+    pred.prevBody = pred.body;                              // save for lerp
+    pred.body     = [{ x: nx, y: ny }, ...pred.body.slice(0, -1)];
     pred.nextTick += tickMs;
   }
 }
 
-// Reconcile prediction with server-confirmed body
+// Sub-tick smooth body: lerp strictly between prevBody and body (NO server involved)
+function getPredBody(now) {
+  if (!pred.body) return null;
+  if (!pred.prevBody) return pred.body;
+  const alpha = Math.max(0, Math.min(1, (now - (pred.nextTick - tickMs)) / tickMs));
+  return pred.body.map((seg, i) => {
+    const ps = pred.prevBody[i] || pred.prevBody[pred.prevBody.length - 1] || seg;
+    const dx = seg.x - ps.x, dy = seg.y - ps.y;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) return seg; // corner snap guard
+    return { x: ps.x + dx * alpha, y: ps.y + dy * alpha };
+  });
+}
+
+// Reconcile with server — only snap on large divergence
 function reconcile(serverBody) {
   if (!serverBody || serverBody.length === 0) return;
   if (!pred.body) {
     pred.body     = serverBody;
+    pred.prevBody = null;
     pred.nextTick = performance.now() + tickMs;
     return;
   }
   const sh = serverBody[0], ph = pred.body[0];
-  const dist = Math.abs(sh.x - ph.x) + Math.abs(sh.y - ph.y);
-  if (dist > 3) {
-    // Too far off → snap to server
+  if (Math.abs(sh.x - ph.x) + Math.abs(sh.y - ph.y) > 4) {
     pred.body     = serverBody;
+    pred.prevBody = null;
     pred.nextTick = performance.now() + tickMs;
   }
-  // Small or zero diff → keep prediction running
-}
-
-// Sub-tick alpha for own snake (how far into the current predicted tick are we?)
-function ownAlpha(now) {
-  const since = now - (pred.nextTick - tickMs);
-  return Math.max(0, Math.min(1, since / tickMs));
+  // If close enough → keep prediction running, don't touch prevBody/body
 }
 
 // ── Canvas sizing ────────────────────────────────────────────────────────────
@@ -195,16 +202,6 @@ function beepDie()  { beep(220, 0.15, 0.18, 'sawtooth'); setTimeout(()=>beep(110
 function beepKill() { beep(660,0.06); setTimeout(()=>beep(990,0.06),50); setTimeout(()=>beep(1320,0.1),100); }
 function beepJoin() { beep(440,0.08); setTimeout(()=>beep(660,0.08),60); setTimeout(()=>beep(880,0.12),120); }
 
-// ── Camera (smooth follow) ───────────────────────────────────────────────────
-function updateCamera(wx, wy) {
-  const tx = wx * CELL - canvas.width  / 2 + CELL / 2;
-  const ty = wy * CELL - canvas.height / 2 + CELL / 2;
-  // Lerp speed: higher = snappier. 0.18 is smooth but responsive.
-  camera.x += (tx - camera.x) * 0.18;
-  camera.y += (ty - camera.y) * 0.18;
-  camera.x = Math.max(-20, Math.min(camera.x, mapW * CELL - canvas.width  + 20));
-  camera.y = Math.max(-20, Math.min(camera.y, mapH * CELL - canvas.height + 20));
-}
 
 // ── Coordinate helpers ───────────────────────────────────────────────────────
 function ws(wx, wy) { return { sx: wx * CELL - camera.x, sy: wy * CELL - camera.y }; }
@@ -484,25 +481,21 @@ function animate() {
         }
       });
 
-      // Draw own snake (client-predicted)
+      // Draw own snake — purely from prediction, no server body involved in rendering
       if (pred.body && pred.body.length > 0) {
-        // Sub-tick lerp: smoothly advance within current tick
-        const alpha = ownAlpha(now);
-        const prevBody = curState.players.find(p => p.id === myId)?.body || pred.body;
-        // Interpolate between last confirmed position and predicted
-        const smoothBody = pred.body.map((seg, i) => {
-          const ps = prevBody[i] || prevBody[prevBody.length-1] || seg;
-          if (Math.abs(seg.x-ps.x) > 2 || Math.abs(seg.y-ps.y) > 2) return seg;
-          return { x: lerp(ps.x, seg.x, alpha), y: lerp(ps.y, seg.y, alpha) };
-        });
-
-        const meData = curState.players.find(p => p.id === myId);
+        const smoothBody = getPredBody(now) || pred.body;
         drawSnakeBody(smoothBody, myColor, pred.dir, true, boosting);
-        updateCamera(smoothBody[0].x, smoothBody[0].y);
+        // Camera follows predicted head directly (higher lerp = less lag feel)
+        const h = smoothBody[0];
+        const tx = h.x * CELL - canvas.width  / 2 + CELL / 2;
+        const ty = h.y * CELL - canvas.height / 2 + CELL / 2;
+        camera.x += (tx - camera.x) * 0.35;
+        camera.y += (ty - camera.y) * 0.35;
+        camera.x = Math.max(-20, Math.min(camera.x, mapW * CELL - canvas.width  + 20));
+        camera.y = Math.max(-20, Math.min(camera.y, mapH * CELL - canvas.height + 20));
 
         lenCountEl.textContent = pred.body.length;
-        const minLen = 8;
-        const ratio = Math.max(0, Math.min(1, (pred.body.length - minLen) / 30));
+        const ratio = Math.max(0, Math.min(1, (pred.body.length - 8) / 30));
         boostFill.style.width = (ratio * 100) + '%';
       }
 
