@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NOKIA SNAKE ONLINE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -10,103 +10,80 @@
 </head>
 <body>
 
-<div id="ambient-bg"></div>
-
+<!-- ── Phone Shell ── -->
 <div id="phone">
 
+  <!-- brand strip -->
   <div id="brand">
     <span class="brand-nokia">NOKIA</span>
-    <div class="signal-bars">
-      <span></span><span></span><span></span><span></span>
-    </div>
     <span class="brand-model">3310</span>
   </div>
 
+  <!-- screen bezel -->
   <div id="screen-bezel">
     <div id="screen">
 
+      <!-- ── LOBBY SCREEN ── -->
       <div id="screen-lobby" class="screen-page">
         <div class="nokia-title">
-          <div class="title-snake">SNAKE</div>
-          <div class="title-online">. ONLINE .</div>
+          <div class="blink">&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;</div>
+          <div>SNAKE</div>
+          <div>ONLINE</div>
+          <div class="blink">&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;</div>
         </div>
         <div class="nokia-sep"></div>
-
-        <div class="lobby-stats">
-          <div class="stat-row">
-            <span>ONLINE</span>
-            <span id="online-count" class="stat-val">0</span>
-          </div>
-          <div class="stat-row">
-            <span>UCRET</span>
-            <span id="entry-fee-display" class="stat-val">50</span>
-          </div>
-          <div class="stat-row">
-            <span>BONUS</span>
-            <span id="start-coins-display" class="stat-val">200</span>
-          </div>
+        <div class="lobby-info">
+          <div>GIRIS UCRETI:</div>
+          <div id="entry-fee-display" class="coin-val">50 COIN</div>
+          <div class="lobby-hint">Olen rakipler</div>
+          <div class="lobby-hint">COIN birakir!</div>
         </div>
-
         <div class="nokia-sep"></div>
-
-        <div class="lobby-hint-block">
-          <div class="lobby-hint">&#9658; OL = COIN DUSER</div>
-          <div class="lobby-hint">&#9658; OLDUR = COIN AL</div>
-          <div class="lobby-hint">&#9658; HIZ = UZUNLUK YER</div>
-        </div>
-
         <div class="input-row">
           <label>AD:</label>
-          <input id="name-input" type="text" maxlength="10" placeholder="ADIN" spellcheck="false" autocomplete="off">
+          <input id="name-input" type="text" maxlength="10" placeholder="SNAKE" spellcheck="false" autocomplete="off">
         </div>
-        <button id="btn-join" class="nokia-btn primary">[ KATIL ]</button>
+        <button id="btn-join" class="nokia-btn">[ KATIL ]</button>
       </div>
 
+      <!-- ── GAME SCREEN ── -->
       <div id="screen-game" class="screen-page hidden">
+        <!-- HUD top -->
         <div id="hud">
-          <span class="hud-cell"><span class="hud-icon coin-icon">&#9670;</span><span id="coin-count">0</span></span>
-          <span class="hud-cell">L:<span id="len-count">0</span></span>
-          <span class="hud-cell">K:<span id="kill-count">0</span></span>
-          <span class="hud-cell" id="hud-name"></span>
+          <span id="hud-coins">&#9670; <span id="coin-count">0</span></span>
+          <span id="hud-len">LEN:<span id="len-count">0</span></span>
+          <span id="hud-name" id="player-name-hud"></span>
         </div>
-
-        <div id="play-area">
-          <canvas id="canvas"></canvas>
-          <canvas id="minimap"></canvas>
-
-          <div id="leaderboard">
-            <div class="lb-title">TOP</div>
-            <ol id="lb-list"></ol>
-          </div>
-
-          <div id="boost-bar">
-            <div id="boost-fill"></div>
-          </div>
-        </div>
-
-        <div id="ctrl-hint">WASD/OK | SPACE=HIZ | TAB=LB</div>
+        <canvas id="canvas"></canvas>
+        <!-- controls hint -->
+        <div id="ctrl-hint">WASD / Oklar | SPACE=HIZ</div>
       </div>
 
+      <!-- ── DEATH SCREEN ── -->
       <div id="screen-death" class="screen-page hidden">
-        <div class="death-header blink">! GAME OVER !</div>
+        <div class="death-header blink">GAME OVER</div>
         <div class="nokia-sep"></div>
         <div id="death-killer" class="death-info"></div>
         <div id="death-length" class="death-info"></div>
-        <div id="death-kills" class="death-info"></div>
+        <div id="death-coins-lost" class="death-info"></div>
         <div class="nokia-sep"></div>
-        <div class="death-coins-block">
-          <div class="death-coins-label">CUZDAN:</div>
-          <div id="death-coins-have" class="coin-val big-coin">0</div>
-        </div>
-        <button id="btn-respawn" class="nokia-btn primary">[ TEKRAR ]</button>
+        <div id="death-coins-have" class="coin-val"></div>
+        <button id="btn-respawn" class="nokia-btn">[ TEKRAR ]</button>
         <button id="btn-quit" class="nokia-btn">[ CIKIS ]</button>
       </div>
 
+      <!-- ── LEADERBOARD overlay ── -->
+      <div id="leaderboard" class="hidden">
+        <div class="lb-title">* TOP 5 *</div>
+        <ol id="lb-list"></ol>
+      </div>
+
+      <!-- scanlines overlay -->
       <div id="scanlines"></div>
-      <div id="screen-glow"></div>
     </div>
   </div>
 
+  <!-- D-pad + buttons -->
   <div id="controls">
     <div id="dpad">
       <button class="dpad-btn" id="dpad-up">&#9650;</button>
@@ -119,19 +96,21 @@
     </div>
 
     <div id="action-btns">
-      <button class="act-btn boost-btn" id="btn-boost">HIZ</button>
+      <button class="act-btn" id="btn-boost">HIZ</button>
       <button class="act-btn" id="btn-lb">LB</button>
     </div>
   </div>
 
+  <!-- bottom bar -->
   <div id="phone-bottom">
-    <div class="speaker-grille">
-      <div class="speaker-dot"></div><div class="speaker-dot"></div><div class="speaker-dot"></div>
-      <div class="speaker-dot"></div><div class="speaker-dot"></div><div class="speaker-dot"></div>
-    </div>
+    <div class="speaker-dot"></div>
+    <div class="speaker-dot"></div>
+    <div class="speaker-dot"></div>
   </div>
+
 </div>
 
+<!-- kill/reward toast -->
 <div id="toast" class="hidden"></div>
 
 <script src="/socket.io/socket.io.js"></script>

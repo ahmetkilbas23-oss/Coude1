@@ -1,84 +1,43 @@
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Nokia color palette */
 :root {
   --lcd-bg:    #8bac0f;
-  --lcd-bg-2:  #9bbc0f;
   --lcd-dark:  #0f380f;
   --lcd-mid:   #306230;
-  --lcd-light: #cadc9f;
-  --phone-body: #1d1d2e;
-  --phone-2:    #11111d;
-  --phone-edge: #0a0a14;
-  --btn-color:  #2a2a4a;
-  --btn-light:  #533483;
-  --accent:     #5d3fd3;
+  --lcd-light: #9bbc0f;
+  --phone-body:#1a1a2e;
+  --phone-2:   #16213e;
+  --btn-color: #0f3460;
+  --btn-light: #533483;
   --font: 'Press Start 2P', monospace;
 }
 
-html, body {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
 body {
-  background: radial-gradient(ellipse at center, #1a1a2e 0%, #050510 70%);
+  background: #111;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   font-family: var(--font);
-  position: relative;
-}
-
-/* Ambient grid background */
-#ambient-bg {
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(83, 52, 131, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(83, 52, 131, 0.07) 1px, transparent 1px);
-  background-size: 40px 40px;
-  z-index: 0;
-  pointer-events: none;
-  animation: gridMove 20s linear infinite;
-}
-@keyframes gridMove {
-  0%   { background-position: 0 0; }
-  100% { background-position: 40px 40px; }
+  overflow: hidden;
 }
 
 /* ── Phone Shell ── */
 #phone {
-  width: 380px;
-  background: linear-gradient(165deg, var(--phone-body) 0%, var(--phone-2) 100%);
-  border-radius: 38px 38px 60px 60px;
-  padding: 12px 18px 22px;
+  width: 300px;
+  background: linear-gradient(160deg, var(--phone-body) 0%, var(--phone-2) 100%);
+  border-radius: 30px 30px 50px 50px;
+  padding: 10px 14px 20px;
   box-shadow:
-    0 0 0 2px var(--phone-edge),
-    0 0 0 4px #2a2a3e,
-    0 20px 60px rgba(0,0,0,0.6),
-    0 0 80px rgba(139, 172, 15, 0.15),
-    inset 0 2px 4px rgba(255,255,255,0.06),
-    inset 0 -8px 16px rgba(0,0,0,0.4);
+    0 0 0 2px #333,
+    0 0 40px rgba(139,172,15,0.3),
+    inset 0 2px 4px rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   position: relative;
-  z-index: 1;
-}
-
-/* metallic top edge highlight */
-#phone::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  border-radius: 50%;
 }
 
 /* ── Brand ── */
@@ -86,61 +45,36 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 8px 0;
+  padding: 4px 6px 0;
 }
 .brand-nokia {
-  font-size: 10px;
-  letter-spacing: 4px;
+  font-size: 9px;
+  letter-spacing: 3px;
   color: var(--lcd-light);
-  text-shadow: 0 0 10px var(--lcd-bg), 0 0 4px #fff;
+  text-shadow: 0 0 8px var(--lcd-bg);
 }
 .brand-model {
   font-size: 7px;
   color: #555;
-  letter-spacing: 1px;
 }
-.signal-bars {
-  display: flex;
-  gap: 1px;
-  align-items: flex-end;
-  height: 8px;
-}
-.signal-bars span {
-  width: 2px;
-  background: var(--lcd-light);
-  opacity: 0.85;
-  box-shadow: 0 0 4px var(--lcd-bg);
-}
-.signal-bars span:nth-child(1) { height: 2px; }
-.signal-bars span:nth-child(2) { height: 4px; }
-.signal-bars span:nth-child(3) { height: 6px; }
-.signal-bars span:nth-child(4) { height: 8px; }
 
 /* ── Screen bezel ── */
 #screen-bezel {
-  background: #050505;
-  border-radius: 10px;
-  padding: 8px;
-  box-shadow:
-    inset 0 4px 12px rgba(0,0,0,0.9),
-    0 1px 0 rgba(255,255,255,0.05);
-  border: 1px solid #000;
+  background: #080808;
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: inset 0 2px 8px #000;
 }
 
 /* ── LCD Screen ── */
 #screen {
   background: var(--lcd-bg);
-  background-image:
-    radial-gradient(ellipse at 30% 30%, var(--lcd-bg-2) 0%, var(--lcd-bg) 70%);
   border-radius: 4px;
   width: 100%;
-  height: 380px;
+  height: 280px;
   position: relative;
   overflow: hidden;
   image-rendering: pixelated;
-  box-shadow:
-    inset 0 0 30px rgba(15, 56, 15, 0.4),
-    inset 0 0 4px rgba(0,0,0,0.3);
 }
 
 /* scanlines */
@@ -151,21 +85,11 @@ body {
     to bottom,
     transparent 0px,
     transparent 2px,
-    rgba(15, 56, 15, 0.06) 2px,
-    rgba(15, 56, 15, 0.06) 3px
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
   );
   pointer-events: none;
   z-index: 100;
-}
-
-/* outer glow on screen */
-#screen-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.18) 100%);
-  z-index: 99;
 }
 
 /* ── Shared screen page ── */
@@ -176,11 +100,10 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 8px;
   color: var(--lcd-dark);
-  font-size: 8px;
-  z-index: 10;
+  font-size: 7px;
 }
 
 .screen-page.hidden { display: none; }
@@ -188,99 +111,50 @@ body {
 /* ── Lobby ── */
 .nokia-title {
   text-align: center;
-  line-height: 1.6;
-}
-.title-snake {
-  font-size: 22px;
-  letter-spacing: 4px;
+  line-height: 1.8;
+  font-size: 10px;
+  font-weight: bold;
   color: var(--lcd-dark);
-  text-shadow: 2px 2px 0 var(--lcd-mid);
-  animation: titlePulse 2s ease-in-out infinite;
-}
-.title-online {
-  font-size: 9px;
-  letter-spacing: 3px;
-  color: var(--lcd-mid);
-  margin-top: 2px;
-}
-@keyframes titlePulse {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.04); }
 }
 .nokia-sep {
   width: 100%;
   height: 2px;
-  background: repeating-linear-gradient(
-    90deg, var(--lcd-mid) 0, var(--lcd-mid) 4px, transparent 4px, transparent 7px
-  );
-  margin: 4px 0;
-}
-.lobby-stats {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 8px;
-  color: var(--lcd-dark);
-}
-.stat-val {
-  font-weight: bold;
-  color: var(--lcd-dark);
   background: var(--lcd-mid);
-  color: var(--lcd-light);
-  padding: 1px 6px;
-  border-radius: 2px;
-  min-width: 30px;
-  text-align: center;
+  margin: 2px 0;
 }
-.lobby-hint-block {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 0 4px;
+.lobby-info {
+  text-align: center;
+  line-height: 2;
 }
 .lobby-hint {
   color: var(--lcd-mid);
-  font-size: 7px;
-  letter-spacing: 0.5px;
+  font-size: 6px;
 }
 .coin-val {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--lcd-dark);
 }
 .input-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
-  margin-top: 4px;
 }
 .input-row label {
-  font-size: 8px;
+  font-size: 7px;
   white-space: nowrap;
-  color: var(--lcd-dark);
 }
 #name-input {
   background: var(--lcd-dark);
   color: var(--lcd-light);
   border: none;
   border-radius: 2px;
-  padding: 5px 6px;
+  padding: 3px 5px;
   font-family: var(--font);
-  font-size: 8px;
+  font-size: 7px;
   width: 100%;
   outline: none;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
-}
-#name-input:focus {
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5), 0 0 0 1px var(--lcd-mid);
 }
 .nokia-btn {
   background: var(--lcd-dark);
@@ -288,36 +162,22 @@ body {
   border: none;
   border-radius: 3px;
   font-family: var(--font);
-  font-size: 8px;
-  padding: 7px 10px;
+  font-size: 7px;
+  padding: 5px 10px;
   cursor: pointer;
   letter-spacing: 1px;
-  transition: all 0.1s;
+  transition: background 0.1s;
   width: 100%;
-  box-shadow: 0 2px 0 var(--lcd-mid);
-}
-.nokia-btn.primary {
-  background: var(--lcd-mid);
-  color: var(--lcd-light);
-  box-shadow: 0 2px 0 var(--lcd-dark);
-  animation: btnGlow 1.5s ease-in-out infinite;
-}
-@keyframes btnGlow {
-  0%, 100% { box-shadow: 0 2px 0 var(--lcd-dark); }
-  50%      { box-shadow: 0 2px 0 var(--lcd-dark), 0 0 6px rgba(15, 56, 15, 0.5); }
 }
 .nokia-btn:hover, .nokia-btn:active {
   background: var(--lcd-mid);
   color: var(--lcd-bg);
-  transform: translateY(1px);
-  box-shadow: 0 1px 0 var(--lcd-dark);
 }
 
 /* ── Game HUD ── */
 #screen-game {
   padding: 0;
   justify-content: flex-start;
-  gap: 0;
 }
 #hud {
   width: 100%;
@@ -326,51 +186,16 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 6px;
-  font-size: 7px;
+  padding: 2px 4px;
+  font-size: 5px;
   flex-shrink: 0;
-  letter-spacing: 1px;
-}
-.hud-cell {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.hud-icon {
-  font-size: 8px;
-}
-.coin-icon {
-  color: var(--lcd-bg);
-  animation: coinSpin 1.5s linear infinite;
-  display: inline-block;
-}
-@keyframes coinSpin {
-  0%, 100% { transform: scaleX(1); }
-  50%      { transform: scaleX(0.4); }
-}
-#play-area {
-  position: relative;
-  flex: 1;
-  width: 100%;
-  display: flex;
 }
 #canvas {
   display: block;
   image-rendering: pixelated;
+  flex: 1;
   width: 100%;
-  height: 100%;
   cursor: none;
-}
-#minimap {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 60px;
-  height: 60px;
-  background: rgba(15, 56, 15, 0.7);
-  border: 1px solid var(--lcd-mid);
-  image-rendering: pixelated;
-  z-index: 20;
 }
 #ctrl-hint {
   font-size: 5px;
@@ -379,51 +204,28 @@ body {
   text-align: center;
   width: 100%;
   flex-shrink: 0;
-  background: rgba(15, 56, 15, 0.15);
-  letter-spacing: 1px;
-}
-
-/* ── Boost meter ── */
-#boost-bar {
-  position: absolute;
-  bottom: 6px;
-  left: 6px;
-  width: 80px;
-  height: 5px;
-  background: rgba(15, 56, 15, 0.4);
-  border: 1px solid var(--lcd-mid);
-  z-index: 20;
-  border-radius: 1px;
-}
-#boost-fill {
-  height: 100%;
-  width: 100%;
-  background: var(--lcd-dark);
-  transition: width 0.15s linear;
 }
 
 /* ── Leaderboard overlay ── */
 #leaderboard {
   position: absolute;
-  top: 70px;
-  right: 4px;
-  width: 90px;
-  background: rgba(15, 56, 15, 0.85);
+  top: 0;
+  right: 0;
+  width: 110px;
+  background: rgba(15,56,15,0.92);
   color: var(--lcd-light);
-  padding: 3px 4px;
+  padding: 4px;
   font-size: 5px;
-  z-index: 30;
-  border: 1px solid var(--lcd-mid);
-  border-radius: 2px;
+  z-index: 50;
+  border-left: 2px solid var(--lcd-mid);
+  border-bottom: 2px solid var(--lcd-mid);
+  border-radius: 0 0 0 4px;
 }
+#leaderboard.hidden { display: none; }
 .lb-title {
   text-align: center;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
   font-size: 6px;
-  color: var(--lcd-bg);
-  letter-spacing: 1px;
-  border-bottom: 1px solid var(--lcd-mid);
-  padding-bottom: 2px;
 }
 #lb-list {
   list-style: none;
@@ -433,50 +235,24 @@ body {
   display: flex;
   justify-content: space-between;
   padding: 1px 0;
+  border-bottom: 1px solid var(--lcd-mid);
   gap: 4px;
-  font-size: 5px;
-  letter-spacing: 0.5px;
 }
-#lb-list li.me {
-  color: var(--lcd-bg-2);
-  font-weight: bold;
-}
-.lb-name {
+#lb-list li span.lb-name {
   overflow: hidden;
   white-space: nowrap;
-  max-width: 50px;
-  text-overflow: ellipsis;
+  max-width: 60px;
 }
 
 /* ── Death screen ── */
 .death-header {
-  font-size: 14px;
+  font-size: 12px;
   text-align: center;
-  letter-spacing: 2px;
-  color: var(--lcd-dark);
 }
 .death-info {
-  font-size: 7px;
+  font-size: 6px;
   text-align: center;
-  color: var(--lcd-dark);
-  letter-spacing: 1px;
-}
-.death-coins-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  background: rgba(15, 56, 15, 0.15);
-  border-radius: 3px;
-  width: 80%;
-}
-.death-coins-label {
-  font-size: 7px;
   color: var(--lcd-mid);
-}
-.big-coin {
-  font-size: 14px;
 }
 
 /* ── D-Pad ── */
@@ -484,163 +260,111 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 12px;
-  gap: 12px;
+  padding: 0 8px;
 }
 #dpad {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 .dpad-mid {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 .dpad-center {
-  width: 28px; height: 28px;
-  background: linear-gradient(145deg, #0a0a18, #16162a);
-  border-radius: 4px;
-  border: 1px solid #2a2a3e;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+  width: 22px; height: 22px;
+  background: #0a0a1a;
+  border-radius: 3px;
 }
 .dpad-btn {
-  width: 36px; height: 36px;
-  background: linear-gradient(145deg, #2e2e4a, #1a1a30);
+  width: 28px; height: 28px;
+  background: linear-gradient(145deg, #2a2a4a, #111128);
   color: var(--lcd-light);
-  border: 1px solid #444466;
-  border-radius: 6px;
-  font-size: 12px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  font-size: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 2px 4px rgba(0,0,0,0.5),
-    inset 0 1px 0 rgba(255,255,255,0.1),
-    inset 0 -2px 0 rgba(0,0,0,0.3);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  text-shadow: 0 0 4px var(--lcd-bg);
-  transition: transform 0.06s, box-shadow 0.06s;
 }
 .dpad-btn:active {
   transform: scale(0.92);
-  background: linear-gradient(145deg, #533483, #3a2570);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+  background: var(--btn-light);
 }
 
 /* ── Action buttons ── */
 #action-btns {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .act-btn {
-  width: 54px; height: 32px;
-  background: linear-gradient(145deg, #2e2e4a, #1a1a30);
+  width: 44px; height: 28px;
+  background: linear-gradient(145deg, #2a2a4a, #111128);
   color: var(--lcd-light);
-  border: 1px solid #444466;
-  border-radius: 16px;
+  border: 1px solid #333;
+  border-radius: 14px;
   font-family: var(--font);
-  font-size: 7px;
+  font-size: 6px;
   cursor: pointer;
-  box-shadow:
-    0 2px 4px rgba(0,0,0,0.5),
-    inset 0 1px 0 rgba(255,255,255,0.1),
-    inset 0 -2px 0 rgba(0,0,0,0.3);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  letter-spacing: 1px;
-  transition: transform 0.06s;
-  text-shadow: 0 0 4px var(--lcd-bg);
 }
 .act-btn:active {
-  background: linear-gradient(145deg, #533483, #3a2570);
+  background: var(--btn-light);
   transform: scale(0.95);
-}
-.boost-btn {
-  background: linear-gradient(145deg, #4a2a2a, #2a1010);
-  border-color: #663030;
-  color: #ffaaaa;
-  text-shadow: 0 0 4px #ff6666;
-}
-.boost-btn:active {
-  background: linear-gradient(145deg, #cc3333, #882020);
-  box-shadow: 0 0 12px rgba(255, 50, 50, 0.6);
 }
 
 /* ── Phone bottom ── */
 #phone-bottom {
   display: flex;
   justify-content: center;
+  gap: 5px;
   padding-bottom: 4px;
-}
-.speaker-grille {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  padding: 4px 8px;
-  background: rgba(0,0,0,0.3);
-  border-radius: 8px;
 }
 .speaker-dot {
   width: 5px; height: 5px;
-  background: #0a0a14;
+  background: #222;
   border-radius: 50%;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+  box-shadow: inset 0 1px 2px #000;
 }
 
 /* ── Toast ── */
 #toast {
   position: fixed;
-  top: 24px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--lcd-dark);
   color: var(--lcd-light);
   border: 2px solid var(--lcd-mid);
   font-family: var(--font);
-  font-size: 8px;
-  padding: 8px 14px;
+  font-size: 7px;
+  padding: 6px 12px;
   border-radius: 4px;
   z-index: 999;
   text-align: center;
   pointer-events: none;
-  max-width: 320px;
-  letter-spacing: 1px;
-  box-shadow: 0 4px 20px rgba(15, 56, 15, 0.6), 0 0 30px rgba(139, 172, 15, 0.3);
-  animation: toastIn 0.2s ease-out;
+  max-width: 280px;
 }
 #toast.hidden { display: none; }
-@keyframes toastIn {
-  from { transform: translate(-50%, -10px); opacity: 0; }
-  to   { transform: translate(-50%, 0); opacity: 1; }
-}
 
-/* ── Animations ── */
+/* ── Blink animation ── */
 @keyframes blink {
   0%, 100% { opacity: 1; }
-  50%      { opacity: 0; }
+  50% { opacity: 0; }
 }
 .blink { animation: blink 1s step-end infinite; }
 
-/* ── Responsive: small screens ── */
-@media (max-width: 420px) {
-  #phone {
-    width: 100vw;
-    max-width: 380px;
-    border-radius: 0;
-    padding: 8px 10px 14px;
-  }
-  #screen {
-    height: 360px;
-  }
-}
-
-@media (max-height: 700px) {
-  #screen {
-    height: 320px;
-  }
+/* ── Pixel glow ── */
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 4px var(--lcd-bg); }
+  50% { text-shadow: 0 0 12px var(--lcd-light), 0 0 4px var(--lcd-bg); }
 }
