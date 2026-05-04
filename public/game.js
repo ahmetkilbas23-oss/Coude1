@@ -28,19 +28,23 @@ const deathCoinsH  = document.getElementById('death-coins-have');
 const entryFeeDisp = document.getElementById('entry-fee-display');
 
 // ── State ────────────────────────────────────────────────────────────────────
-let myId       = null;
-let myCoins    = 0;
-let myColor    = '#33ff33';
-let myName     = '';
-let mapW       = 200;
-let mapH       = 200;
-let CELL       = 10;
-let entryFee   = 50;
-let camera     = { x: 0, y: 0 };
-let lbVisible  = false;
-let boosting   = false;
-let lastState  = null;
-let coinsPrev  = 0;
+let myId        = null;
+let myCoins     = 0;
+let myColor     = '#33ff33';
+let myName      = '';
+let mapW        = 200;
+let mapH        = 200;
+let CELL        = 10;
+let entryFee    = 50;
+let tickMs      = 100;
+let camera      = { x: 0, y: 0 };
+let lbVisible   = false;
+let boosting    = false;
+let prevState   = null;
+let curState    = null;
+let stateAt     = 0;   // performance.now() when curState arrived
+let lastState   = null;
+let coinsPrev   = 0;
 
 // LCD color palette (Nokia green)
 const LCD_BG    = '#8bac0f';
@@ -101,10 +105,27 @@ function beepKill() { beep(880, 0.1); beep(1100, 0.1, 0.1); }
 // ── Camera tracking ──────────────────────────────────────────────────────────
 function updateCamera(head) {
   if (!head) return;
-  camera.x = head.x * CELL - canvas.width  / 2 + CELL / 2;
-  camera.y = head.y * CELL - canvas.height / 2 + CELL / 2;
+  const tx = head.x * CELL - canvas.width  / 2 + CELL / 2;
+  const ty = head.y * CELL - canvas.height / 2 + CELL / 2;
+  camera.x += (tx - camera.x) * 0.15;
+  camera.y += (ty - camera.y) * 0.15;
   camera.x = Math.max(0, Math.min(camera.x, mapW * CELL - canvas.width));
   camera.y = Math.max(0, Math.min(camera.y, mapH * CELL - canvas.height));
+}
+
+// ── Interpolation ─────────────────────────────────────────────────────────────
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function interpBody(prevPlayer, curPlayer, t) {
+  if (!curPlayer || !curPlayer.body) return [];
+  if (!prevPlayer || !prevPlayer.body) return curPlayer.body;
+  const prev = prevPlayer.body;
+  const cur  = curPlayer.body;
+  return cur.map((seg, i) => {
+    const ps = prev[i] || prev[prev.length - 1] || seg;
+    if (Math.abs(seg.x - ps.x) > 3 || Math.abs(seg.y - ps.y) > 3) return seg;
+    return { x: lerp(ps.x, seg.x, t), y: lerp(ps.y, seg.y, t) };
+  });
 }
 
 // ── Draw helpers ─────────────────────────────────────────────────────────────
@@ -250,35 +271,45 @@ function hexToRgb(hex) {
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
-function render(state) {
-  if (!state) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+function renderFrame() {
+  if (!curState) return;
 
-  // LCD background
+  const alpha = Math.min(1, (performance.now() - stateAt) / tickMs);
+  const prevMap = {};
+  if (prevState) prevState.players.forEach(p => { prevMap[p.id] = p; });
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = LCD_BG;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   drawGrid();
   drawWalls();
-  drawFood(state.food, false);
-  drawFood(state.coinFood, true);
+  drawFood(curState.food, false);
+  drawFood(curState.coinFood, true);
 
-  // Draw other players first, then self on top
-  const myPlayer = state.players.find(p => p.id === myId);
-  state.players.forEach(p => {
-    if (p.id !== myId) drawSnake(p, false);
+  const myPlayer = curState.players.find(p => p.id === myId);
+
+  curState.players.forEach(p => {
+    if (p.id === myId) return;
+    const iBody = interpBody(prevMap[p.id], p, alpha);
+    drawSnake({ ...p, body: iBody }, false);
   });
+
   if (myPlayer) {
-    drawSnake(myPlayer, true);
-    updateCamera(myPlayer.body[0]);
-    // Update HUD
+    const iBody = interpBody(prevMap[myId], myPlayer, alpha);
+    drawSnake({ ...myPlayer, body: iBody }, true);
+    updateCamera(iBody[0] || myPlayer.body[0]);
     lenCountEl.textContent = myPlayer.body.length;
   }
 
-  // Leaderboard
-  if (lbVisible && state.leaderboard) {
-    renderLeaderboard(state.leaderboard);
+  if (lbVisible && curState.leaderboard) {
+    renderLeaderboard(curState.leaderboard);
   }
+}
+
+function animLoop() {
+  renderFrame();
+  requestAnimationFrame(animLoop);
 }
 
 function renderLeaderboard(lb) {
@@ -306,7 +337,10 @@ socket.on('joined', (data) => {
   mapH      = data.mapHeight;
   CELL      = data.cell;
   entryFee  = data.entryFee;
+  tickMs    = data.tickMs || 100;
   coinsPrev = myCoins;
+  prevState = null;
+  curState  = null;
 
   coinCountEl.textContent = myCoins;
   hudNameEl.textContent   = myName;
@@ -318,15 +352,10 @@ socket.on('joined', (data) => {
 });
 
 socket.on('state', (state) => {
-  lastState = state;
-
-  // Track coin changes
-  const me = state.players.find(p => p.id === myId);
-  if (me) {
-    // coins are tracked server-side; we get them via events
-  }
-
-  render(state);
+  lastState  = state;
+  prevState  = curState;
+  curState   = state;
+  stateAt    = performance.now();
 });
 
 socket.on('kill_reward', ({ amount, victim }) => {
@@ -478,3 +507,4 @@ window.addEventListener('resize', resizeCanvas);
 // ── Init ──────────────────────────────────────────────────────────────────────
 showScreen('lobby');
 resizeCanvas();
+requestAnimationFrame(animLoop);
