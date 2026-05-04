@@ -12,22 +12,24 @@ const io = new Server(server, {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const MAP_WIDTH = 220;
-const MAP_HEIGHT = 220;
+// ─── Game constants ───────────────────────────────────────────────────────────
+const MAP_WIDTH = 200;
+const MAP_HEIGHT = 200;
 const CELL = 10;
-const TICK_MS = 50;
-const FOOD_COUNT = 100;
-const COIN_FOOD_COUNT = 25;
+const TICK_MS = 100;
+const FOOD_COUNT = 80;
+const COIN_FOOD_COUNT = 20;
 const ENTRY_FEE = 50;
 const START_COINS = 200;
-const KILL_REWARD_PCT = 0.4;
+const KILL_REWARD_PCT = 0.4; // 40% of dead player's coins go to killer
 const FOOD_VALUE = 1;
 const COIN_FOOD_VALUE = 10;
 const STARTING_LENGTH = 5;
-const BOOST_DRAIN = 0.2;
+const BOOST_DRAIN = 0.2; // length drained per tick while boosting
 
 const COLORS = ['#33ff33', '#ffff33', '#ff3333', '#33ffff', '#ff33ff', '#ff9933', '#33ff99', '#ff6699'];
 
+// ─── Game state ───────────────────────────────────────────────────────────────
 let players = {};
 let food = [];
 let coinFood = [];
@@ -75,7 +77,6 @@ function updateLeaderboard() {
 }
 
 function dropCoins(x, y, amount) {
-  if (amount <= 0) return;
   const drops = Math.min(amount, 30);
   for (let i = 0; i < drops; i++) {
     const ox = x + Math.floor(Math.random() * 7) - 3;
@@ -84,7 +85,7 @@ function dropCoins(x, y, amount) {
       x: Math.max(0, Math.min(MAP_WIDTH - 1, ox)),
       y: Math.max(0, Math.min(MAP_HEIGHT - 1, oy)),
       id: uuidv4(),
-      value: Math.max(1, Math.ceil(amount / drops))
+      value: Math.ceil(amount / drops)
     });
   }
 }
@@ -98,40 +99,32 @@ function killPlayer(pid, killerId) {
   const killer_reward = Math.floor(killed_coins * KILL_REWARD_PCT);
 
   // drop body segments as food
-  for (let i = 0; i < p.body.length; i += 2) {
+  for (let i = 0; i < p.body.length; i += 3) {
     food.push({ x: p.body[i].x, y: p.body[i].y, id: uuidv4() });
   }
 
+  // drop some coins on the map
   const dropped = Math.floor(killed_coins * (1 - KILL_REWARD_PCT));
   if (p.body.length > 0) {
     dropCoins(p.body[0].x, p.body[0].y, dropped);
   }
 
-  // explosion broadcast
-  if (p.body.length > 0) {
-    io.emit('explosion', {
-      x: p.body[0].x,
-      y: p.body[0].y,
-      color: p.color
-    });
-  }
-
+  // give reward to killer
   if (killerId && players[killerId] && players[killerId].alive) {
     players[killerId].coins += killer_reward;
-    players[killerId].kills = (players[killerId].kills || 0) + 1;
     io.to(killerId).emit('kill_reward', { amount: killer_reward, victim: p.name });
   }
 
   io.to(pid).emit('you_died', {
     coins: p.coins,
     length: p.body.length,
-    kills: p.kills || 0,
     killer: killerId ? (players[killerId] ? players[killerId].name : '?') : 'wall'
   });
 
   io.emit('player_died', { id: pid, name: p.name });
 }
 
+// ─── Game tick ────────────────────────────────────────────────────────────────
 function gameTick() {
   const allBodies = {};
   Object.values(players).forEach(p => {
@@ -156,6 +149,7 @@ function gameTick() {
       const nx = head.x + dv.x;
       const ny = head.y + dv.y;
 
+      // wall collision
       if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) {
         killPlayer(p.id, null);
         return;
@@ -163,6 +157,7 @@ function gameTick() {
 
       const newHead = { x: nx, y: ny };
 
+      // food collision
       const fi = food.findIndex(f => f.x === nx && f.y === ny);
       let grew = false;
       if (fi !== -1) {
@@ -171,6 +166,7 @@ function gameTick() {
         grew = true;
       }
 
+      // coin food collision
       const ci = coinFood.findIndex(f => f.x === nx && f.y === ny);
       if (ci !== -1) {
         const cf = coinFood.splice(ci, 1)[0];
@@ -180,6 +176,7 @@ function gameTick() {
 
       p.body.unshift(newHead);
       if (!grew) {
+        // remove tail segment from allBodies
         const tail = p.body.pop();
         const tk = `${tail.x},${tail.y}`;
         if (allBodies[tk]) {
@@ -188,10 +185,13 @@ function gameTick() {
         }
       }
 
+      // boost drain
       if (boosting) {
         p.body.pop();
+        p.boost_heat = (p.boost_heat || 0) + BOOST_DRAIN;
       }
 
+      // update head in allBodies
       const hk = `${nx},${ny}`;
       if (!allBodies[hk]) allBodies[hk] = [];
       allBodies[hk].push(p.id);
@@ -202,16 +202,22 @@ function gameTick() {
   Object.values(players).forEach(p => {
     if (!p.alive) return;
     const head = p.body[0];
+    const hk = `${head.x},${head.y}`;
+    const occupants = allBodies[hk] || [];
 
+    // find if another snake's body is here
     Object.values(players).forEach(other => {
       if (!other.alive || other.id === p.id) return;
+      // check if head is inside other's body (skip head vs head → both die)
       for (let i = 1; i < other.body.length; i++) {
         if (other.body[i].x === head.x && other.body[i].y === head.y) {
           killPlayer(p.id, other.id);
           return;
         }
       }
+      // head vs head
       if (other.body[0].x === head.x && other.body[0].y === head.y && p.id !== other.id) {
+        // shorter dies, equal → both die
         if (p.body.length <= other.body.length) {
           killPlayer(p.id, other.id);
         } else {
@@ -221,19 +227,13 @@ function gameTick() {
     });
   });
 
+  // refill food
   spawnFood(FOOD_COUNT, food, MAP_WIDTH);
   spawnFood(COIN_FOOD_COUNT, coinFood, MAP_WIDTH);
 
   updateLeaderboard();
 
-  const onlineCount = Object.values(players).filter(p => p.alive).length;
-
-  // Per-player state with personalized coin info
-  Object.values(players).forEach(p => {
-    if (!p.alive) return;
-    io.to(p.id).emit('coin_update', { coins: p.coins });
-  });
-
+  // build compact state
   const state = {
     players: Object.values(players)
       .filter(p => p.alive)
@@ -242,15 +242,11 @@ function gameTick() {
         name: p.name,
         color: p.color,
         body: p.body,
-        boost: p.boost,
-        dir: p.dir
+        boost: p.boost
       })),
     food,
     coinFood,
-    leaderboard,
-    online: onlineCount,
-    mapW: MAP_WIDTH,
-    mapH: MAP_HEIGHT
+    leaderboard
   };
 
   io.emit('state', state);
@@ -259,20 +255,15 @@ function gameTick() {
 initFood();
 setInterval(gameTick, TICK_MS);
 
+// ─── Socket events ────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('connect:', socket.id);
-
-  socket.emit('lobby_info', {
-    online: Object.keys(players).length,
-    entryFee: ENTRY_FEE,
-    startCoins: START_COINS
-  });
 
   socket.on('join', ({ name }) => {
     const cleanName = String(name).slice(0, 12).replace(/[<>]/g, '') || 'SNAKE';
     const colorIdx = Object.keys(players).length % COLORS.length;
-    const sx = 20 + Math.floor(Math.random() * (MAP_WIDTH - 40));
-    const sy = 20 + Math.floor(Math.random() * (MAP_HEIGHT - 40));
+    const sx = 10 + Math.floor(Math.random() * (MAP_WIDTH - 20));
+    const sy = 10 + Math.floor(Math.random() * (MAP_HEIGHT - 20));
     const dirs = ['RIGHT', 'LEFT', 'UP', 'DOWN'];
 
     players[socket.id] = {
@@ -285,7 +276,7 @@ io.on('connection', (socket) => {
       alive: true,
       coins: START_COINS - ENTRY_FEE,
       boost: false,
-      kills: 0
+      boost_heat: 0
     };
 
     socket.emit('joined', {
@@ -295,7 +286,6 @@ io.on('connection', (socket) => {
       mapWidth: MAP_WIDTH,
       mapHeight: MAP_HEIGHT,
       cell: CELL,
-      tickMs: TICK_MS,
       entryFee: ENTRY_FEE
     });
 
@@ -323,8 +313,8 @@ io.on('connection', (socket) => {
       socket.emit('not_enough_coins', { need: ENTRY_FEE, have: p.coins });
       return;
     }
-    const sx = 20 + Math.floor(Math.random() * (MAP_WIDTH - 40));
-    const sy = 20 + Math.floor(Math.random() * (MAP_HEIGHT - 40));
+    const sx = 10 + Math.floor(Math.random() * (MAP_WIDTH - 20));
+    const sy = 10 + Math.floor(Math.random() * (MAP_HEIGHT - 20));
     const dirs = ['RIGHT', 'LEFT', 'UP', 'DOWN'];
     p.body = makeSnake(sx, sy);
     p.dir = dirs[Math.floor(Math.random() * 4)];
