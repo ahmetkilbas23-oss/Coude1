@@ -104,17 +104,25 @@ function dirVec(dir) {
   return { UP:{x:0,y:-1}, DOWN:{x:0,y:1}, LEFT:{x:-1,y:0}, RIGHT:{x:1,y:0} }[dir] || {x:1,y:0};
 }
 
-// Advance prediction one tick at a time up to `now`
+function oppositeDir(d) {
+  return { UP:'DOWN', DOWN:'UP', LEFT:'RIGHT', RIGHT:'LEFT' }[d];
+}
+
+// Advance prediction one tick at a time up to `now`.
+// During boost server moves 2 cells/tick, mirror that here so we don't rubber-band.
 function advancePrediction(now) {
   if (!pred.body || !alive) return;
   while (now >= pred.nextTick) {
-    const dv   = dirVec(pred.dir);
-    const head = pred.body[0];
-    const nx   = head.x + dv.x;
-    const ny   = head.y + dv.y;
-    if (nx < 0 || nx >= mapW || ny < 0 || ny >= mapH) break;
-    pred.prevBody = pred.body;                              // save for lerp
-    pred.body     = [{ x: nx, y: ny }, ...pred.body.slice(0, -1)];
+    pred.prevBody = pred.body; // save once per tick for smooth lerp across both sub-ticks
+    const subTicks = boosting && pred.body.length > 7 ? 2 : 1;
+    for (let st = 0; st < subTicks; st++) {
+      const dv   = dirVec(pred.dir);
+      const head = pred.body[0];
+      const nx   = head.x + dv.x;
+      const ny   = head.y + dv.y;
+      if (nx < 0 || nx >= mapW || ny < 0 || ny >= mapH) break;
+      pred.body  = [{ x: nx, y: ny }, ...pred.body.slice(0, -1)];
+    }
     pred.nextTick += tickMs;
   }
 }
@@ -142,7 +150,9 @@ function reconcile(serverBody) {
     return;
   }
   const sh = serverBody[0], ph = pred.body[0];
-  if (Math.abs(sh.x - ph.x) + Math.abs(sh.y - ph.y) > 4) {
+  // Only hard-snap on big divergence (wrong direction, big lag spike, etc).
+  // Small drift from latency is normal — leave prediction alone to avoid jitter.
+  if (Math.abs(sh.x - ph.x) + Math.abs(sh.y - ph.y) > 8) {
     pred.body     = serverBody;
     pred.prevBody = null;
     pred.nextTick = performance.now() + tickMs;
@@ -606,6 +616,8 @@ let inputDir = null;
 
 function sendDir(dir) {
   if (dir === inputDir) return;
+  // Server rejects 180° turns; if we predict them locally the snake rubber-bands.
+  if (pred.body && oppositeDir(pred.dir) === dir) return;
   inputDir  = dir;
   pred.dir  = dir; // immediate prediction update
   socket.emit('dir', { dir });
