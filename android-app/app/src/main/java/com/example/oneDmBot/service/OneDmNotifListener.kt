@@ -10,7 +10,14 @@ class OneDmNotifListener : NotificationListenerService() {
         sbn ?: return
         val pkg = sbn.packageName ?: return
         val expected = Settings(this).oneDmPackage
-        if (pkg != expected && pkg != "com.dv.adm" && pkg != "com.dv.adm.pay") return
+        val knownPkgs = setOf(
+            expected,
+            "idm.internet.download.manager",
+            "idm.internet.download.manager.plus",
+            "com.dv.adm",
+            "com.dv.adm.pay"
+        )
+        if (pkg !in knownPkgs) return
         MovieAutoDownloadService.instance?.notifyDownloadStarted()
     }
 

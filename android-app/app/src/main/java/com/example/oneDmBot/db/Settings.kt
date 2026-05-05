@@ -15,7 +15,7 @@ class Settings(ctx: Context) {
         set(value) = prefs.edit { putString(KEY_LANGUAGE, value) }
 
     var oneDmPackage: String
-        get() = prefs.getString(KEY_PACKAGE, "com.dv.adm") ?: "com.dv.adm"
+        get() = prefs.getString(KEY_PACKAGE, "idm.internet.download.manager") ?: "idm.internet.download.manager"
         set(value) = prefs.edit { putString(KEY_PACKAGE, value) }
 
     var playButtonX: Int

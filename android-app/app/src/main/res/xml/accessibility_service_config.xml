@@ -7,4 +7,4 @@
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
     android:notificationTimeout="100"
-    android:packageNames="com.dv.adm,com.dv.adm.pay,com.example.oneDmBot" />
+    android:packageNames="idm.internet.download.manager,idm.internet.download.manager.plus,com.dv.adm,com.dv.adm.pay" />

@@ -57,7 +57,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             )
             OutlinedTextField(
                 value = pkg, onValueChange = { pkg = it; s.oneDmPackage = it },
-                label = { Text("1DM paket adı (com.dv.adm veya com.dv.adm.pay)") }, singleLine = true,
+                label = { Text("1DM paket adı (1DM=idm.internet.download.manager, 1DM+=idm.internet.download.manager.plus)") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
