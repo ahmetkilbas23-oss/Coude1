@@ -204,7 +204,11 @@ class MovieAutoDownloadService : AccessibilityService() {
     ): AccessibilityNodeInfo? {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
-            val root = rootInActiveWindow ?: run { delay(300); continue }
+            val root = rootInActiveWindow
+            if (root == null) {
+                delay(300)
+                continue
+            }
             find(root)?.let { return it }
             delay(400)
         }

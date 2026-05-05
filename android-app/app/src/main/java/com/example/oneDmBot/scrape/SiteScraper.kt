@@ -45,7 +45,8 @@ object SiteScraper {
 
         for (sel in candidates) {
             for (a in doc.select(sel)) {
-                val href = a.absUrl("href").ifBlank { continue }
+                val href = a.absUrl("href")
+                if (href.isBlank()) continue
                 if (!isFilmUrl(href, categoryUrl)) continue
                 val title = (a.attr("title").ifBlank {
                     a.selectFirst("img")?.attr("alt").orEmpty()
