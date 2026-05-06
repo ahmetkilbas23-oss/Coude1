@@ -3,19 +3,14 @@ package com.example.oneDmBot.service
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.Path
 import android.net.Uri
-import android.os.Build
 import android.util.Log
-import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.example.oneDmBot.db.AppDatabase
 import com.example.oneDmBot.db.FilmEntity
 import com.example.oneDmBot.db.Settings
-import com.example.oneDmBot.template.TemplateMatcher
-import com.example.oneDmBot.template.TemplateStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,15 +18,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 class MovieAutoDownloadService : AccessibilityService() {
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private lateinit var settings: Settings
     private lateinit var db: AppDatabase
-    private lateinit var templates: TemplateStore
 
     @Volatile private var workerJob: Job? = null
     @Volatile private var lastNotifSeen: Long = 0L
@@ -40,7 +32,6 @@ class MovieAutoDownloadService : AccessibilityService() {
         super.onServiceConnected()
         settings = Settings(this)
         db = AppDatabase.get(this)
-        templates = TemplateStore(this)
         instance = this
         Log.i(TAG, "MovieAutoDownloadService connected")
         startWorkerLoop()
@@ -114,8 +105,7 @@ class MovieAutoDownloadService : AccessibilityService() {
         delay(7_000)
 
         // Step 4: tap the play button (calibrated coordinates)
-        val px = settings.playButtonX
-        val py = settings.playButtonY
+        val (px, py) = settings.getCoord(Settings.Slot.PLAY)
         if (px <= 0 || py <= 0) {
             Log.e(TAG, "Play button not calibrated"); return false
         }
@@ -123,37 +113,17 @@ class MovieAutoDownloadService : AccessibilityService() {
             Log.w(TAG, "play tap dispatch failed"); return false
         }
 
-        // Step 5: wait for 1DM to detect downloads, then tap the counter.
-        // Primary path: visual template matching against the user-supplied
-        // reference crop of the download icon. Fallback: accessibility text
-        // lookup (rarely works for 1DM's custom views but kept for robustness).
+        // Step 5: wait for 1DM to detect downloads, then tap the calibrated
+        // download counter coordinate. 1DM's URL bar is a custom view so
+        // accessibility text/image lookups are unreliable; coord is the only
+        // path the user accepted.
         delay(8_000)
-        val templateBitmap = templates.load(TemplateStore.SLOT_DOWNLOAD)
-        var tappedDownload = false
-        if (templateBitmap != null) {
-            val deadline = System.currentTimeMillis() + 12_000
-            while (System.currentTimeMillis() < deadline && !tappedDownload) {
-                val screenshot = takeScreenshotSuspend()
-                if (screenshot != null) {
-                    val match = TemplateMatcher.findCenter(screenshot, templateBitmap)
-                    screenshot.recycle()
-                    if (match != null) {
-                        Log.i(TAG, "download icon found at ${match.x},${match.y}")
-                        tappedDownload = gestureTap(match.x.toFloat(), match.y.toFloat())
-                        break
-                    }
-                }
-                delay(1_500)
-            }
+        val (dx, dy) = settings.getCoord(Settings.Slot.DOWNLOAD)
+        if (dx <= 0 || dy <= 0) {
+            Log.e(TAG, "Download counter not calibrated"); return false
         }
-        if (!tappedDownload) {
-            val downloadFab = waitForNode(timeoutMs = 4_000) { findDownloadFab(it) }
-            if (downloadFab != null) {
-                tappedDownload = clickNode(downloadFab)
-            }
-        }
-        if (!tappedDownload) {
-            Log.w(TAG, "download icon never matched; teach a template first"); return false
+        if (!gestureTap(dx.toFloat(), dy.toFloat())) {
+            Log.w(TAG, "download tap dispatch failed"); return false
         }
 
         // Step 6+7: pick the row matching resolution & language
@@ -182,16 +152,6 @@ class MovieAutoDownloadService : AccessibilityService() {
     }
 
     // ── node lookup helpers ──────────────────────────────────────────────────
-    private fun findDownloadFab(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        // 1DM exposes the FAB with content description like "Download" or a counter badge
-        val descMatches = listOf("download", "indir", "indirme")
-        return findFirst(root) { node ->
-            val cd = (node.contentDescription ?: "").toString().lowercase()
-            val txt = (node.text ?: "").toString().lowercase()
-            (descMatches.any { cd.contains(it) || txt.contains(it) }) && node.isClickable
-        }
-    }
-
     private fun findResolutionRow(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         val res = settings.preferredResolution.lowercase()
         val lang = settings.preferredLanguage.lowercase()
@@ -265,39 +225,6 @@ class MovieAutoDownloadService : AccessibilityService() {
             .addStroke(GestureDescription.StrokeDescription(path, 0, 80))
             .build()
         return dispatchGesture(gesture, null, null)
-    }
-
-    /**
-     * Capture the current display via AccessibilityService.takeScreenshot.
-     * Returns a software-backed ARGB_8888 bitmap suitable for pixel access.
-     * The platform rate-limits this to ~1 call/sec; bursting will return null.
-     */
-    suspend fun takeScreenshotSuspend(): Bitmap? = suspendCancellableCoroutine { cont ->
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            cont.resume(null); return@suspendCancellableCoroutine
-        }
-        try {
-            takeScreenshot(
-                Display.DEFAULT_DISPLAY,
-                applicationContext.mainExecutor,
-                object : TakeScreenshotCallback {
-                    override fun onSuccess(result: ScreenshotResult) {
-                        val hwBitmap = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
-                        result.hardwareBuffer.close()
-                        val sw = hwBitmap?.copy(Bitmap.Config.ARGB_8888, false)
-                        hwBitmap?.recycle()
-                        cont.resume(sw)
-                    }
-                    override fun onFailure(errorCode: Int) {
-                        Log.w(TAG, "takeScreenshot failed: $errorCode")
-                        cont.resume(null)
-                    }
-                }
-            )
-        } catch (t: Throwable) {
-            Log.e(TAG, "takeScreenshot threw", t)
-            cont.resume(null)
-        }
     }
 
     companion object {
