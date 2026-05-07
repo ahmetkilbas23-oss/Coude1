@@ -22,6 +22,10 @@ class Settings(ctx: Context) {
         get() = prefs.getInt(KEY_DAILY_HOUR, 4)
         set(value) = prefs.edit { putInt(KEY_DAILY_HOUR, value) }
 
+    var isPaused: Boolean
+        get() = prefs.getBoolean(KEY_PAUSED, false)
+        set(value) = prefs.edit { putBoolean(KEY_PAUSED, value) }
+
     fun getCoord(slot: Slot): Pair<Int, Int> =
         prefs.getInt(slot.keyX, -1) to prefs.getInt(slot.keyY, -1)
 
@@ -62,5 +66,6 @@ class Settings(ctx: Context) {
         private const val KEY_LANGUAGE = "preferred_language"
         private const val KEY_PACKAGE = "one_dm_package"
         private const val KEY_DAILY_HOUR = "daily_hour"
+        private const val KEY_PAUSED = "is_paused"
     }
 }
