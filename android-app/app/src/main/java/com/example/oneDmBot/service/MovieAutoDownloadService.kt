@@ -2,6 +2,7 @@ package com.example.oneDmBot.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.app.ActivityManager
 import android.content.Intent
 import android.graphics.Path
 import android.net.Uri
@@ -57,6 +58,10 @@ class MovieAutoDownloadService : AccessibilityService() {
             // mark any inflight items as pending again on service (re)start
             db.filmDao().resetInflight()
             while (true) {
+                if (settings.isPaused) {
+                    delay(3_000)
+                    continue
+                }
                 val film = db.filmDao().nextWithStatus(FilmEntity.STATUS_PENDING)
                 if (film == null) {
                     delay(5_000)
@@ -70,35 +75,44 @@ class MovieAutoDownloadService : AccessibilityService() {
     private suspend fun processFilm(film: FilmEntity) {
         Log.i(TAG, "Processing film ${film.title} :: ${film.filmUrl}")
         db.filmDao().setStatus(film.id, FilmEntity.STATUS_DOWNLOADING)
-        val ok = runCatching { driveOneDm(film.filmUrl) }.getOrElse {
-            Log.w(TAG, "driveOneDm threw", it); false
+        val outcome = runCatching { driveOneDm(film.filmUrl) }.getOrElse {
+            Log.w(TAG, "driveOneDm threw", it); DriveOutcome.RETRY
         }
-        if (ok) {
-            db.filmDao().setStatus(film.id, FilmEntity.STATUS_DONE)
-        } else {
-            db.filmDao().bumpRetry(film.id)
-            val refreshed = db.filmDao().nextWithStatus(FilmEntity.STATUS_DOWNLOADING)
-            val retries = refreshed?.retries ?: (film.retries + 1)
-            if (retries >= MAX_RETRIES) {
-                db.filmDao().setStatus(film.id, FilmEntity.STATUS_FAILED)
-            } else {
-                db.filmDao().setStatus(film.id, FilmEntity.STATUS_PENDING)
-                delay(3_000)
+        when (outcome) {
+            DriveOutcome.SUCCESS ->
+                db.filmDao().setStatus(film.id, FilmEntity.STATUS_DONE)
+            DriveOutcome.SKIP -> {
+                Log.i(TAG, "Skipping ${film.title} — no matching resolution row")
+                db.filmDao().setStatus(film.id, FilmEntity.STATUS_SKIPPED)
+                closeOneDm()
+            }
+            DriveOutcome.RETRY -> {
+                db.filmDao().bumpRetry(film.id)
+                val refreshed = db.filmDao().nextWithStatus(FilmEntity.STATUS_DOWNLOADING)
+                val retries = refreshed?.retries ?: (film.retries + 1)
+                if (retries >= MAX_RETRIES) {
+                    db.filmDao().setStatus(film.id, FilmEntity.STATUS_FAILED)
+                } else {
+                    db.filmDao().setStatus(film.id, FilmEntity.STATUS_PENDING)
+                    delay(3_000)
+                }
             }
         }
     }
 
-    private suspend fun driveOneDm(filmUrl: String): Boolean {
+    private enum class DriveOutcome { SUCCESS, RETRY, SKIP }
+
+    private suspend fun driveOneDm(filmUrl: String): DriveOutcome {
         // Step 1+2+3: open the film page in 1DM's built-in browser
         val pkg = settings.oneDmPackage
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(filmUrl)).apply {
             setPackage(pkg)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
         try {
             startActivity(intent)
         } catch (t: Throwable) {
-            Log.e(TAG, "Cannot launch 1DM ($pkg): $t"); return false
+            Log.e(TAG, "Cannot launch 1DM ($pkg): $t"); return DriveOutcome.RETRY
         }
 
         // wait for page to load
@@ -107,48 +121,51 @@ class MovieAutoDownloadService : AccessibilityService() {
         // Step 4: tap the play button (calibrated coordinates)
         val (px, py) = settings.getCoord(Settings.Slot.PLAY)
         if (px <= 0 || py <= 0) {
-            Log.e(TAG, "Play button not calibrated"); return false
+            Log.e(TAG, "Play button not calibrated"); return DriveOutcome.RETRY
         }
         if (!gestureTap(px.toFloat(), py.toFloat())) {
-            Log.w(TAG, "play tap dispatch failed"); return false
+            Log.w(TAG, "play tap dispatch failed"); return DriveOutcome.RETRY
         }
 
-        // Step 5: wait for 1DM to detect downloads, then tap the calibrated
-        // download counter coordinate. 1DM's URL bar is a custom view so
-        // accessibility text/image lookups are unreliable; coord is the only
-        // path the user accepted.
-        delay(8_000)
+        // Step 5: wait for 1DM to detect downloads (counter to fill), then
+        // tap the calibrated download counter coordinate. 20 s is the longest
+        // detection window observed by the user; tapping earlier hits an
+        // empty list and 1DM just refreshes the page.
+        delay(20_000)
         val (dx, dy) = settings.getCoord(Settings.Slot.DOWNLOAD)
         if (dx <= 0 || dy <= 0) {
-            Log.e(TAG, "Download counter not calibrated"); return false
+            Log.e(TAG, "Download counter not calibrated"); return DriveOutcome.RETRY
         }
         if (!gestureTap(dx.toFloat(), dy.toFloat())) {
-            Log.w(TAG, "download tap dispatch failed"); return false
+            Log.w(TAG, "download tap dispatch failed"); return DriveOutcome.RETRY
         }
 
-        // Step 6+7: pick the row matching resolution & language
+        // Step 6+7: pick the row matching resolution & language. If the
+        // film simply doesn't offer a 1280×Türkçe variant, skip rather than
+        // retry endlessly.
         val pickRow = waitForNode(timeoutMs = 8_000) { findResolutionRow(it) }
         if (pickRow == null) {
-            Log.w(TAG, "no matching resolution row found"); return false
+            Log.w(TAG, "no matching resolution row found — skipping film")
+            return DriveOutcome.SKIP
         }
-        if (!clickNode(pickRow)) return false
+        if (!clickNode(pickRow)) return DriveOutcome.RETRY
 
         // Step 8: confirm screen, find "Başla" / "Start"
         val startBtn = waitForNode(timeoutMs = 6_000) { findStartButton(it) }
         if (startBtn == null) {
-            Log.w(TAG, "Başla button not found"); return false
+            Log.w(TAG, "Başla button not found"); return DriveOutcome.RETRY
         }
-        if (!clickNode(startBtn)) return false
+        if (!clickNode(startBtn)) return DriveOutcome.RETRY
 
         // Step 9: download notification confirms success — give listener up to 12s
         val deadline = System.currentTimeMillis() + 12_000
         val baseline = lastNotifSeen
         while (System.currentTimeMillis() < deadline) {
-            if (lastNotifSeen > baseline) return true
+            if (lastNotifSeen > baseline) return DriveOutcome.SUCCESS
             delay(500)
         }
         // Treat as success even without notif: 1DM may suppress while in foreground.
-        return true
+        return DriveOutcome.SUCCESS
     }
 
     // ── node lookup helpers ──────────────────────────────────────────────────
@@ -225,6 +242,24 @@ class MovieAutoDownloadService : AccessibilityService() {
             .addStroke(GestureDescription.StrokeDescription(path, 0, 80))
             .build()
         return dispatchGesture(gesture, null, null)
+    }
+
+    /**
+     * Force-close 1DM after a SKIP so its leftover resolution dialog doesn't
+     * bleed into the next film's session. Two BACK presses dismiss most
+     * dialogs, HOME pushes 1DM to background, then killBackgroundProcesses
+     * actually terminates the process. The next driveOneDm Intent uses
+     * FLAG_ACTIVITY_CLEAR_TASK so 1DM is launched fresh.
+     */
+    private suspend fun closeOneDm() {
+        performGlobalAction(GLOBAL_ACTION_BACK); delay(300)
+        performGlobalAction(GLOBAL_ACTION_BACK); delay(300)
+        performGlobalAction(GLOBAL_ACTION_HOME); delay(500)
+        runCatching {
+            val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+            am.killBackgroundProcesses(settings.oneDmPackage)
+        }.onFailure { Log.w(TAG, "killBackgroundProcesses failed", it) }
+        delay(500)
     }
 
     companion object {

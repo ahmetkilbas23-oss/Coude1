@@ -28,5 +28,6 @@ data class FilmEntity(
         const val STATUS_DOWNLOADING = "downloading"
         const val STATUS_DONE = "done"
         const val STATUS_FAILED = "failed"
+        const val STATUS_SKIPPED = "skipped"
     }
 }
