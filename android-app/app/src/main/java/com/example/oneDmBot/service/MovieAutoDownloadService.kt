@@ -2,6 +2,7 @@ package com.example.oneDmBot.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.app.ActivityManager
 import android.content.Intent
 import android.graphics.Path
 import android.net.Uri
@@ -83,6 +84,7 @@ class MovieAutoDownloadService : AccessibilityService() {
             DriveOutcome.SKIP -> {
                 Log.i(TAG, "Skipping ${film.title} — no matching resolution row")
                 db.filmDao().setStatus(film.id, FilmEntity.STATUS_SKIPPED)
+                closeOneDm()
             }
             DriveOutcome.RETRY -> {
                 db.filmDao().bumpRetry(film.id)
@@ -105,7 +107,7 @@ class MovieAutoDownloadService : AccessibilityService() {
         val pkg = settings.oneDmPackage
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(filmUrl)).apply {
             setPackage(pkg)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
         try {
             startActivity(intent)
@@ -240,6 +242,24 @@ class MovieAutoDownloadService : AccessibilityService() {
             .addStroke(GestureDescription.StrokeDescription(path, 0, 80))
             .build()
         return dispatchGesture(gesture, null, null)
+    }
+
+    /**
+     * Force-close 1DM after a SKIP so its leftover resolution dialog doesn't
+     * bleed into the next film's session. Two BACK presses dismiss most
+     * dialogs, HOME pushes 1DM to background, then killBackgroundProcesses
+     * actually terminates the process. The next driveOneDm Intent uses
+     * FLAG_ACTIVITY_CLEAR_TASK so 1DM is launched fresh.
+     */
+    private suspend fun closeOneDm() {
+        performGlobalAction(GLOBAL_ACTION_BACK); delay(300)
+        performGlobalAction(GLOBAL_ACTION_BACK); delay(300)
+        performGlobalAction(GLOBAL_ACTION_HOME); delay(500)
+        runCatching {
+            val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+            am.killBackgroundProcesses(settings.oneDmPackage)
+        }.onFailure { Log.w(TAG, "killBackgroundProcesses failed", it) }
+        delay(500)
     }
 
     companion object {
